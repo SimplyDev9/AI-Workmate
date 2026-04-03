@@ -7,17 +7,17 @@ import {
   Moon,
   Sun,
   BrainCircuit,
+  Cloud,
 } from 'lucide-react';
 import apiService from '../services/api';
 
 const Layout = ({ children }) => {
   const [messages, setMessages] = useState([]);
   const location = useLocation();
-//   const [darkMode, setDarkMode] = useState(false);
-const [darkMode, setDarkMode] = useState(() => {
-  const savedTheme = localStorage.getItem('theme');
-  return savedTheme === 'dark';
-});
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme === 'dark';
+  });
   const [isHealthy, setIsHealthy] = useState(null);
 
   // Check backend health on mount
@@ -33,27 +33,21 @@ const [darkMode, setDarkMode] = useState(() => {
   }, []);
 
   // Toggle dark mode
-//   useEffect(() => {
-//     if (darkMode) {
-//       document.documentElement.classList.add('dark');
-//     } else {
-//       document.documentElement.classList.remove('dark');
-//     }
-//   }, [darkMode]);
-useEffect(() => {
-  if (darkMode) {
-    document.documentElement.classList.add('dark');
-    localStorage.setItem('theme', 'dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-    localStorage.setItem('theme', 'light');
-  }
-}, [darkMode]);
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
 
   const navigation = [
     { name: 'Chat', path: '/', icon: MessageSquare },
     { name: 'Knowledge Base', path: '/knowledge-base', icon: Database },
     { name: 'Upload Document', path: '/upload', icon: Upload },
+    { name: 'SharePoint Upload', path: '/sharepoint', icon: Cloud },
   ];
 
   return (

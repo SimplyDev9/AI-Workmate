@@ -8,6 +8,9 @@ const apiService = {
   async checkHealth() {
     try {
       const res = await fetch(`${API_BASE}/health`);
+
+      if (!res.ok) throw new Error("Health check failed");
+
       const data = await res.json();
 
       return {
@@ -36,6 +39,10 @@ const apiService = {
         body: JSON.stringify({ query })
       });
 
+      if (!res.ok) {
+        throw new Error(`Chat API failed: ${res.status}`);
+      }
+
       const data = await res.json();
 
       return {
@@ -57,11 +64,14 @@ const apiService = {
   async listDocuments() {
     try {
       const res = await fetch(`${API_BASE}/list_docs`);
+
+      if (!res.ok) throw new Error("Failed to fetch documents");
+
       const data = await res.json();
 
       return {
         success: true,
-        data: data
+        data
       };
 
     } catch (error) {
@@ -83,6 +93,8 @@ const apiService = {
           method: "DELETE"
         }
       );
+
+      if (!res.ok) throw new Error("Delete failed");
 
       const data = await res.json();
 
@@ -122,12 +134,19 @@ const apiService = {
         };
 
         xhr.onload = () => {
-          const response = JSON.parse(xhr.responseText);
+          try {
+            const response = JSON.parse(xhr.responseText);
 
-          resolve({
-            success: true,
-            data: response
-          });
+            resolve({
+              success: true,
+              data: response
+            });
+          } catch {
+            reject({
+              success: false,
+              error: "Invalid response from server"
+            });
+          }
         };
 
         xhr.onerror = () => {
@@ -147,8 +166,73 @@ const apiService = {
         error: error.message
       };
     }
-  }
+  },
 
+  // ------------------------
+  // SHAREPOINT: GET SITE ID
+  // ------------------------
+    async getSiteId(hostname, siteName) {
+    try {
+      const res = await fetch(`${API_BASE}/get_site_id`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          hostname: hostname,
+          site_name: siteName
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Get Site ID failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      return {
+        success: true,
+        data
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+
+  // ------------------------
+  // SHAREPOINT: INGEST
+  // ------------------------
+  async ingestSharePoint(siteId, folderPath) {
+    try {
+      const res = await fetch(
+        `${API_BASE}/ingest_sharepoint?site_id=${encodeURIComponent(siteId)}&folder_path=${encodeURIComponent(folderPath)}`,
+        {
+          method: "POST"
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`SharePoint ingestion failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      return {
+        success: true,
+        data
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
 };
 
 export default apiService;

@@ -8,12 +8,14 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
     // ✅ Convert message exactly
     let safeMessage;
 
+    const text = message?.text;
+
     if (message === null) {
       safeMessage = "null";
     } else if (message === undefined) {
       safeMessage = "undefined";
     } else {
-      safeMessage = String(message);
+      safeMessage = String(text);
     }
 
     // ✅ No animation for user
@@ -36,7 +38,7 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
 
     return () => clearInterval(interval);
 
-  }, [message]);
+  }, [message?.text]);
 
   return (
     <div
@@ -71,10 +73,33 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
           {displayedText}
           {/* ✅ Cursor only while typing */}
           {!isUser &&
-            displayedText.length < String(message || "").length && (
+            displayedText.length < String(message?.text || "").length && (
               <span className="inline-block w-1 h-4 ml-1 bg-cyan-500 animate-pulse" />
             )}
         </p>
+        {!isUser && message?.sources?.length > 0 && (
+          <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+            <p className="font-semibold mb-1">📄 Sources:</p>
+            <ul className="list-disc list-inside space-y-1">
+              {message.sources.map((src, index) => (
+                <li key={index}>
+                  {src.type === "sharepoint" && src.url ? (
+                    <a
+                      href={src.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      {src.name} 🔗
+                    </a>
+                  ) : (
+                    <span>{src.name}</span>  // ✅ normal text for uploads
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

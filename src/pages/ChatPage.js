@@ -56,6 +56,7 @@ const ChatPage = () => {
           text: result.data.response,
           isUser: false,
           isTyping: true,
+          sources: result.data.sources || [],
         },
       ]);
     } else {
@@ -148,7 +149,7 @@ const ChatPage = () => {
             {messages.map((msg) => (
               <ChatMessage
                 key={msg.id}
-                message={msg.text}
+                message={msg}
                 isUser={msg.isUser}
                 isTyping={msg.isTyping}
               />
