@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   MessageSquare,
   Database,
@@ -8,52 +8,118 @@ import {
   Sun,
   BrainCircuit,
   Cloud,
+  ShieldCheck,
+  LogOut,
 } from 'lucide-react';
 import apiService from '../services/api';
 
-const Layout = ({ children }) => {
-  const [messages, setMessages] = useState([]);
+// ✅ Safe permission parser
+const getPermissions = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem('permissions') || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const Layout = () => {
   const location = useLocation();
-  const [darkMode, setDarkMode] = useState(() => {
-    const savedTheme = localStorage.getItem('theme');
-    return savedTheme === 'dark';
-  });
+  const navigate = useNavigate();
+
+  const [messages, setMessages] = useState([]); // ✅ keep chat state
+  const [permissions, setPermissions] = useState(getPermissions());
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem('theme') === 'dark'
+  );
   const [isHealthy, setIsHealthy] = useState(null);
 
-  // Check backend health on mount
+  // 🔄 Sync permissions (important after login/logout)
   useEffect(() => {
-    const checkHealth = async () => {
-      const result = await apiService.checkHealth();
-      setIsHealthy(result.success);
-    };
-    checkHealth();
-    // Check health every 30 seconds
-    const interval = setInterval(checkHealth, 30000);
-    return () => clearInterval(interval);
+    const sync = () => setPermissions(getPermissions());
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
   }, []);
 
-  // Toggle dark mode
+  // 🔌 Health check (silent)
   useEffect(() => {
+    let isMounted = true;
+
+    const checkHealth = async () => {
+      const result = await apiService.checkHealth();
+      if (isMounted) setIsHealthy(result.success);
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // 🌙 Dark mode
+  useEffect(() => {
+    const root = document.documentElement;
+
     if (darkMode) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
       localStorage.setItem('theme', 'light');
     }
   }, [darkMode]);
 
-  const navigation = [
-    { name: 'Chat', path: '/', icon: MessageSquare },
-    { name: 'Knowledge Base', path: '/knowledge-base', icon: Database },
-    { name: 'Upload Document', path: '/upload', icon: Upload },
-    { name: 'SharePoint Upload', path: '/sharepoint', icon: Cloud },
-  ];
+  // 🔓 Logout
+  const handleLogout = () => {
+    sessionStorage.clear();
+    navigate('/login', { replace: true });
+  };
+
+  // 🔐 RBAC Navigation
+  const navigation = [];
+
+  if (permissions.includes('chat')) {
+    navigation.push({ name: 'Chat', path: '/', icon: MessageSquare });
+  }
+
+  if (permissions.includes('view_kb')) {
+    navigation.push({
+      name: 'Knowledge Base',
+      path: '/knowledge-base',
+      icon: Database,
+    });
+  }
+
+  if (permissions.includes('ingest')) {
+    navigation.push({
+      name: 'Upload Document',
+      path: '/upload',
+      icon: Upload,
+    });
+
+    navigation.push({
+      name: 'SharePoint Upload',
+      path: '/sharepoint',
+      icon: Cloud,
+    });
+  }
+
+  if (permissions.includes('manage_users')) {
+    navigation.push({
+      name: 'Admin Panel',
+      path: '/admin',
+      icon: ShieldCheck,
+    });
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+
       {/* Sidebar */}
       <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+
         {/* Logo */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
@@ -76,16 +142,17 @@ const Layout = ({ children }) => {
           {navigation.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
+
             return (
               <Link
                 key={item.path}
                 to={item.path}
+                data-testid={`nav-${item.name.toLowerCase().replace(/ /g, '-')}`}
                 className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
                     ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
-                data-testid={`nav-${item.name.toLowerCase().replace(' ', '-')}`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.name}</span>
@@ -96,7 +163,8 @@ const Layout = ({ children }) => {
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
-          {/* Health Status */}
+
+          {/* Health */}
           <div className="flex items-center space-x-2 px-4 py-2">
             <div
               className={`w-2 h-2 rounded-full ${
@@ -106,7 +174,6 @@ const Layout = ({ children }) => {
                   ? 'bg-green-500 animate-pulse'
                   : 'bg-red-500'
               }`}
-              data-testid="health-indicator"
             />
             <span className="text-sm text-gray-600 dark:text-gray-400">
               {isHealthy === null
@@ -117,27 +184,34 @@ const Layout = ({ children }) => {
             </span>
           </div>
 
-          {/* Dark Mode Toggle */}
+          {/* Dark Mode */}
           <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            data-testid="dark-mode-toggle"
+            onClick={() => setDarkMode((prev) => !prev)}
+            data-testid="toggle-dark-mode"
+            className="w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
-            {darkMode ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon className="w-5 h-5" />
-            )}
+            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             <span className="text-sm">
               {darkMode ? 'Light Mode' : 'Dark Mode'}
             </span>
           </button>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            data-testid="logout-button"
+            className="w-full flex items-center space-x-3 px-4 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
+
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {React.cloneElement(children, { messages, setMessages })}
+        <Outlet context={{ messages, setMessages }} />
       </div>
     </div>
   );

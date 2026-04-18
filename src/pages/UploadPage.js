@@ -3,6 +3,8 @@ import { Upload, FileText, CheckCircle, AlertCircle, X, Loader2 } from 'lucide-r
 import apiService from '../services/api';
 
 const UploadPage = () => {
+  const permissions = JSON.parse(sessionStorage.getItem("permissions") || "[]");
+  const canUpload = permissions.includes("ingest");
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -102,6 +104,14 @@ const UploadPage = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
+
+  if (!canUpload) {
+    return (
+      <div className="p-6 text-red-500 text-lg">
+        🚫 You do not have permission to upload documents
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
