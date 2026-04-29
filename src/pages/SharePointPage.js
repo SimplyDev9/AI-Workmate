@@ -182,9 +182,9 @@ const SharePointPage = () => {
                   <p className="text-sm font-medium text-green-800 dark:text-green-300">
                     {fetchIdMessage}
                   </p>
-                  <p className="text-xs text-green-700 dark:text-green-400 mt-1 break-all">
+                  {/* <p className="text-xs text-green-700 dark:text-green-400 mt-1 break-all">
                     Site ID: {siteId}
-                  </p>
+                  </p> */}
                 </div>
               </div>
             )}

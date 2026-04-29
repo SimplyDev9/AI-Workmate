@@ -29,8 +29,13 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      sessionStorage.clear();
-      window.location.href = "/login";
+      const token = sessionStorage.getItem("token");
+      if (token) {
+        // Only redirect if user was already logged in (expired session)
+        sessionStorage.clear();
+        window.location.href = "/login";
+      }
+      // If no token, it's a login failure — let it bubble up to the page
     }
     return Promise.reject(error);
   }

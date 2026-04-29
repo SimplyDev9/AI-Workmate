@@ -25,16 +25,21 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const validateEmail = (value) => /\S+@\S+\.\S+/.test(value);
-
+  // const showError = (msg) => {
+  //   setError(msg);
+  //   setTimeout(() => setError(''), 5000); // clears after 5 seconds
+  // };
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (!email.trim() || !password.trim()) {
+      // showError('Please fill in all fields.');
       setError('Please fill in all fields.');
       return;
     }
     if (!validateEmail(email)) {
+      // showError('Please enter a valid email.');
       setError('Please enter a valid email.');
       return;
     }
@@ -52,10 +57,12 @@ const LoginPage = () => {
         sessionStorage.setItem('roles', JSON.stringify(result.data.roles || []));
         navigate('/');
       } else {
+        // showError(result?.error || 'Login failed. Please try again.');
         setError(result?.error || 'Login failed. Please try again.');
       }
     } catch (err) {
       console.error(err);
+      // showError('Something went wrong. Please try again later.');
       setError('Something went wrong. Please try again later.');
     } finally {
       setIsLoading(false);

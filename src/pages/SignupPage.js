@@ -136,13 +136,13 @@ const SignupPage = () => {
               </span>
             </h1>
             <p className="text-white/80 text-base leading-relaxed">
-              Start free in under a minute. Upload documents, connect
+              Upload documents, connect
               SharePoint, and let AI turn your knowledge base into instant answers.
             </p>
 
             <div className="grid grid-cols-1 gap-3 pt-2">
               {[
-                { icon: Zap, text: 'Instant setup — no credit card required' },
+                // { icon: Zap, text: 'Instant setup — no credit card required' },
                 { icon: Users, text: 'Collaborate with role-based access' },
                 { icon: ShieldCheck, text: 'Enterprise-grade security & RBAC' },
               ].map((f, i) => (
@@ -178,9 +178,9 @@ const SignupPage = () => {
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
               Create your account
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            {/* <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
               Get started free — no credit card required.
-            </p>
+            </p> */}
           </div>
 
           {error && (
