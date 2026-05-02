@@ -5,9 +5,7 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
   const [displayedText, setDisplayedText] = useState('');
 
   useEffect(() => {
-    // ✅ Convert message exactly
     let safeMessage;
-
     const text = message?.text;
 
     if (message === null) {
@@ -18,25 +16,37 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
       safeMessage = String(text);
     }
 
-    // ✅ No animation for user
     if (isUser || !isTyping) {
       setDisplayedText(safeMessage);
       return;
     }
 
     let index = 0;
+    let interval;
 
-    const interval = setInterval(() => {
+    // If tab becomes hidden, instantly complete the text
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearInterval(interval);
+        setDisplayedText(safeMessage);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    interval = setInterval(() => {
       index++;
-
       setDisplayedText(safeMessage.slice(0, index));
-
       if (index >= safeMessage.length) {
         clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
     }, 20);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
 
   }, [message?.text]);
 

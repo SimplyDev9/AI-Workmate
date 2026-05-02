@@ -80,7 +80,7 @@ const UploadPage = () => {
         setUploadProgress(0);
         setUploadStatus(null);
         setUploadMessage('');
-      }, 2000);
+      }, 5000);
     } else {
       setUploadStatus('error');
       setUploadMessage(`Upload failed: ${result.error}`);
