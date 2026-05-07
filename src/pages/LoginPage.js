@@ -15,9 +15,11 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import apiService from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -49,12 +51,8 @@ const LoginPage = () => {
       const result = await apiService.login(email, password);
 
       if (result?.success) {
-        sessionStorage.setItem('access_token', result.data.access_token);
-        sessionStorage.setItem(
-          'permissions',
-          JSON.stringify(result.data.permissions || [])
-        );
-        sessionStorage.setItem('roles', JSON.stringify(result.data.roles || []));
+        // api.js already stored token; now sync AuthContext from server
+        await refresh();
         navigate('/');
       } else {
         // showError(result?.error || 'Login failed. Please try again.');

@@ -74,13 +74,13 @@ const UploadPage = () => {
     if (result.success) {
       setUploadStatus('success');
       setUploadMessage('Document uploaded and processed successfully!');
-      // Clear file after 2 seconds
+      // Clear file after 8 seconds
       setTimeout(() => {
         setFile(null);
         setUploadProgress(0);
         setUploadStatus(null);
         setUploadMessage('');
-      }, 5000);
+      }, 8000);
     } else {
       setUploadStatus('error');
       setUploadMessage(`Upload failed: ${result.error}`);

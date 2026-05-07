@@ -8,6 +8,7 @@ import {
   Outlet,
 } from "react-router-dom";
 
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import ChatPage from "./pages/ChatPage";
 import KnowledgeBasePage from "./pages/KnowledgeBasePage";
@@ -20,46 +21,50 @@ import AdminPage from "./pages/AdminPage";
 import "./App.css";
 
 // ------------------------
-// AUTH HELPERS
-// ------------------------
-const isAuthenticated = () => {
-  return !!sessionStorage.getItem("token");
-};
-
-const getPermissions = () => {
-  try {
-    return JSON.parse(sessionStorage.getItem("permissions") || "[]");
-  } catch {
-    return [];
-  }
-};
-
-// ------------------------
 // ROUTE GUARDS
 // ------------------------
 
-// 🔐 Auth Guard
+// Shows nothing while server permission check is in flight
+function AuthLoading() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+// Requires a valid token — redirects to /login otherwise
 function RequireAuth() {
+  const { loading } = useAuth();
   const location = useLocation();
 
-  if (!isAuthenticated()) {
+  if (loading) return <AuthLoading />;
+
+  if (!sessionStorage.getItem("token")) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <Outlet />;
 }
 
-// 🚫 Guest Guard
+// Blocks logged-in users from seeing /login or /signup
 function GuestOnly() {
-  if (isAuthenticated()) {
+  const { loading } = useAuth();
+
+  if (loading) return <AuthLoading />;
+
+  if (sessionStorage.getItem("token")) {
     return <Navigate to="/" replace />;
   }
+
   return <Outlet />;
 }
 
-// 👑 Admin Guard (UPDATED UI)
+// Requires manage_users permission — sourced from server via AuthContext
 function RequireAdmin() {
-  const permissions = getPermissions();
+  const { permissions, loading } = useAuth();
+
+  if (loading) return <AuthLoading />;
 
   if (!permissions.includes("manage_users")) {
     return (
@@ -72,8 +77,8 @@ function RequireAdmin() {
             No Access
           </h2>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            You don't have permission to access the Admin Panel. Please contact
-            your administrator.
+            You don't have permission to access the Admin Panel.
+            Please contact your administrator.
           </p>
         </div>
       </div>
@@ -89,35 +94,37 @@ function RequireAdmin() {
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <AuthProvider>
+        <Routes>
 
-        {/* GUEST ROUTES */}
-        <Route element={<GuestOnly />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-        </Route>
-
-        {/* PROTECTED ROUTES */}
-        <Route element={<RequireAuth />}>
-          <Route element={<Layout />}>
-
-            <Route path="/" element={<ChatPage />} />
-            <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
-            <Route path="/upload" element={<UploadPage />} />
-            <Route path="/sharepoint" element={<SharePointPage />} />
-
-            {/* ADMIN ONLY */}
-            <Route element={<RequireAdmin />}>
-              <Route path="/admin" element={<AdminPage />} />
-            </Route>
-
+          {/* GUEST ROUTES */}
+          <Route element={<GuestOnly />}>
+            <Route path="/login"  element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
           </Route>
-        </Route>
 
-        {/* FALLBACK */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+          {/* PROTECTED ROUTES */}
+          <Route element={<RequireAuth />}>
+            <Route element={<Layout />}>
 
-      </Routes>
+              <Route path="/"               element={<ChatPage />} />
+              <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+              <Route path="/upload"         element={<UploadPage />} />
+              <Route path="/sharepoint"     element={<SharePointPage />} />
+
+              {/* ADMIN ONLY */}
+              <Route element={<RequireAdmin />}>
+                <Route path="/admin" element={<AdminPage />} />
+              </Route>
+
+            </Route>
+          </Route>
+
+          {/* FALLBACK */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

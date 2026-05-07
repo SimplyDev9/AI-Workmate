@@ -522,14 +522,24 @@ const PermissionsTab = ({ roles, rolePermissions, actions, onRefreshRolePerms })
   const [selectedPerms, setSelectedPerms] = useState([]);
   const [busy, setBusy] = useState({});
 
-  // When role changes, pre-fill current permissions (if we have them)
+  const [loadingPerms, setLoadingPerms] = useState(false);
+
+  // When role changes, always fetch current permissions from the API
   useEffect(() => {
-    if (selectedRole && rolePermissions[selectedRole]) {
-      setSelectedPerms(rolePermissions[selectedRole]);
-    } else {
-      setSelectedPerms([]);
-    }
-  }, [selectedRole, rolePermissions]);
+    if (!selectedRole) { setSelectedPerms([]); return; }
+    setLoadingPerms(true);
+    apiService.getRolePermissions(selectedRole)
+      .then((res) => {
+        if (res.success) {
+          const perms = res.data?.permissions || [];
+          setSelectedPerms(perms);
+          onRefreshRolePerms(selectedRole, perms);
+        } else {
+          setSelectedPerms([]);
+        }
+      })
+      .finally(() => setLoadingPerms(false));
+  }, [selectedRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const togglePerm = (perm) => {
     setSelectedPerms((prev) =>
@@ -591,6 +601,7 @@ const PermissionsTab = ({ roles, rolePermissions, actions, onRefreshRolePerms })
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Permissions
+                {loadingPerms && <Loader2 className="inline w-3.5 h-3.5 ml-2 animate-spin text-indigo-500" />}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {AVAILABLE_PERMISSIONS.map((perm) => {
@@ -711,6 +722,14 @@ const AdminPage = () => {
     return Array.from(set).sort();
   };
 
+  const fetchRoles = useCallback(async () => {
+    const res = await apiService.listRoles();
+    if (res.success) {
+      const names = (res.data || []).map((r) => r.role || r.name || r).filter(Boolean);
+      setRoles((prev) => Array.from(new Set([...prev, ...names])).sort());
+    }
+  }, []);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     const res = await apiService.listUsers();
@@ -720,7 +739,6 @@ const AdminPage = () => {
       setUsers(list);
       setRoles((prev) => {
         const derived = deriveRolesFromUsers(list);
-        // merge with any roles created locally
         return Array.from(new Set([...prev, ...derived])).sort();
       });
     } else {
@@ -730,7 +748,8 @@ const AdminPage = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchRoles();
+  }, [fetchUsers, fetchRoles]);
 
   // -----------------------------------------
   // Action handlers (wired to apiService)

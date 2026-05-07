@@ -12,33 +12,18 @@ import {
   LogOut,
 } from 'lucide-react';
 import apiService from '../services/api';
-
-// ✅ Safe permission parser
-const getPermissions = () => {
-  try {
-    return JSON.parse(sessionStorage.getItem('permissions') || '[]');
-  } catch {
-    return [];
-  }
-};
+import { useAuth } from '../context/AuthContext';
 
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [messages, setMessages] = useState([]); // ✅ keep chat state
-  const [permissions, setPermissions] = useState(getPermissions());
+  const [messages, setMessages] = useState([]);
+  const { permissions } = useAuth();
   const [darkMode, setDarkMode] = useState(
     localStorage.getItem('theme') === 'dark'
   );
   const [isHealthy, setIsHealthy] = useState(null);
-
-  // 🔄 Sync permissions (important after login/logout)
-  useEffect(() => {
-    const sync = () => setPermissions(getPermissions());
-    window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
-  }, []);
 
   // 🔌 Health check (silent)
   useEffect(() => {
@@ -84,7 +69,7 @@ const Layout = () => {
     navigation.push({ name: 'Chat', path: '/', icon: MessageSquare });
   }
 
-  if (permissions.includes('view_kb')) {
+  if (permissions.includes('ingest')) {
     navigation.push({
       name: 'Knowledge Base',
       path: '/knowledge-base',

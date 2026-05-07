@@ -45,8 +45,15 @@ axiosInstance.interceptors.response.use(
 // ERROR HANDLER
 // ------------------------
 const handleError = (error) => {
+  if (error.response?.status === 429) {
+    return "Too many attempts. Please wait a minute before trying again.";
+  }
+  const detail = error.response?.data?.detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => d.msg || JSON.stringify(d)).join("; ");
+  }
   return (
-    error.response?.data?.detail ||
+    detail ||
     error.response?.data?.message ||
     error.message ||
     "Something went wrong"
@@ -274,9 +281,7 @@ const apiService = {
 
   async reactivateUser(email) {
     try {
-      const res = await axiosInstance.post("/admin/reactivate-user", null, {
-        params: { email },
-      });
+      const res = await axiosInstance.post("/admin/reactivate-user", { email });
       return { success: true, data: res.data };
     } catch (err) {
       return { success: false, error: handleError(err) };
@@ -322,6 +327,33 @@ const apiService = {
           },
         }
       );
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+
+  async getRolePermissions(roleName) {
+    try {
+      const res = await axiosInstance.get(`/admin/role-permissions/${roleName}`);
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+
+  async listRoles() {
+    try {
+      const res = await axiosInstance.get("/admin/list-roles");
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+
+  async getMe() {
+    try {
+      const res = await axiosInstance.get("/auth/me");
       return { success: true, data: res.data };
     } catch (err) {
       return { success: false, error: handleError(err) };
