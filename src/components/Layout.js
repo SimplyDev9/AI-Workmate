@@ -10,6 +10,7 @@ import {
   Cloud,
   ShieldCheck,
   LogOut,
+  Mic,
 } from 'lucide-react';
 import apiService from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -67,6 +68,8 @@ const Layout = () => {
 
   if (permissions.includes('chat')) {
     navigation.push({ name: 'Chat', path: '/', icon: MessageSquare });
+    // Voice Assistant sits next to Chat — same 'chat' permission required
+    navigation.push({ name: 'Voice Assistant', path: '/voice', icon: Mic });
   }
 
   if (permissions.includes('ingest')) {
@@ -75,15 +78,11 @@ const Layout = () => {
       path: '/knowledge-base',
       icon: Database,
     });
-  }
-
-  if (permissions.includes('ingest')) {
     navigation.push({
       name: 'Upload Document',
       path: '/upload',
       icon: Upload,
     });
-
     navigation.push({
       name: 'SharePoint Upload',
       path: '/sharepoint',

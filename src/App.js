@@ -17,6 +17,7 @@ import SharePointPage from "./pages/SharePointPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import AdminPage from "./pages/AdminPage";
+import VoiceAssistantPage from "./pages/VoiceAssistantPage";  // ← NEW
 
 import "./App.css";
 
@@ -24,7 +25,6 @@ import "./App.css";
 // ROUTE GUARDS
 // ------------------------
 
-// Shows nothing while server permission check is in flight
 function AuthLoading() {
   return (
     <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -33,7 +33,6 @@ function AuthLoading() {
   );
 }
 
-// Requires a valid token — redirects to /login otherwise
 function RequireAuth() {
   const { loading } = useAuth();
   const location = useLocation();
@@ -47,7 +46,6 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-// Blocks logged-in users from seeing /login or /signup
 function GuestOnly() {
   const { loading } = useAuth();
 
@@ -60,7 +58,6 @@ function GuestOnly() {
   return <Outlet />;
 }
 
-// Requires manage_users permission — sourced from server via AuthContext
 function RequireAdmin() {
   const { permissions, loading } = useAuth();
 
@@ -108,6 +105,7 @@ function App() {
             <Route element={<Layout />}>
 
               <Route path="/"               element={<ChatPage />} />
+              <Route path="/voice"          element={<VoiceAssistantPage />} />  {/* ← NEW */}
               <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
               <Route path="/upload"         element={<UploadPage />} />
               <Route path="/sharepoint"     element={<SharePointPage />} />
