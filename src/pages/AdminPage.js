@@ -17,6 +17,7 @@ import {
   Tag,
 } from 'lucide-react';
 import apiService from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 // -----------------------------------------
 // Constants
@@ -154,6 +155,7 @@ const TabButton = ({ active, onClick, icon: Icon, label, count, testId }) => (
 // USERS TAB
 // -----------------------------------------
 const UsersTab = ({ users, roles, loading, onRefresh, actions }) => {
+  const { email: currentUserEmail } = useAuth();
   const [confirm, setConfirm] = useState(null);
   const [assign, setAssign] = useState({ email: '', role_name: '' });
   const [busy, setBusy] = useState({});
@@ -313,10 +315,17 @@ const UsersTab = ({ users, roles, loading, onRefresh, actions }) => {
                                 >
                                   {r}
                                   <button
-                                    onClick={() => handleRemoveRole(user.email, r)}
-                                    disabled={busy[key]}
-                                    className="ml-0.5 hover:text-red-500 disabled:opacity-50"
-                                    title="Remove role"
+                                    onClick={() => {
+                                      if (user.email === currentUserEmail) return;
+                                      handleRemoveRole(user.email, r);
+                                    }}
+                                    disabled={busy[key] || user.email === currentUserEmail}
+                                    title={user.email === currentUserEmail ? "You cannot remove your own roles" : "Remove role"}
+                                    className={`ml-0.5 disabled:opacity-30 ${
+                                      user.email === currentUserEmail
+                                        ? 'cursor-not-allowed text-gray-300 dark:text-gray-600'
+                                        : 'hover:text-red-500 disabled:opacity-50'
+                                    }`}
                                     data-testid={`remove-role-btn-${user.email}-${r}`}
                                   >
                                     {busy[key] ? (
@@ -351,19 +360,26 @@ const UsersTab = ({ users, roles, loading, onRefresh, actions }) => {
                             </button>
                           ) : (
                             <button
-                              onClick={() =>
+                              onClick={() => {
+                                if (user.email === currentUserEmail) return;
                                 setConfirm({
                                   type: 'delete',
                                   email: user.email,
                                   title: 'Delete user?',
                                   message: `Are you sure you want to delete ${user.email}? This is a soft delete — the user can be reactivated later.`,
-                                })
-                              }
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors"
+                                });
+                              }}
+                              disabled={user.email === currentUserEmail}
+                              title={user.email === currentUserEmail ? "You cannot delete your own account" : "Delete user"}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                user.email === currentUserEmail
+                                  ? 'text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
+                                  : 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40'
+                              }`}
                               data-testid={`delete-user-btn-${user.email}`}
                             >
                               <UserX className="w-3.5 h-3.5" />
-                              Delete
+                              {user.email === currentUserEmail ? 'You' : 'Delete'}
                             </button>
                           )}
                         </div>

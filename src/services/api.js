@@ -199,21 +199,15 @@ const apiService = {
     }
   },
 
-  async uploadDocument(file, onProgress) {
+  async uploadDocument(file) {
+    // POST file → returns { job_id, filename }
+    // Caller opens GET /upload_doc/progress/{job_id} as SSE stream for real progress
     try {
       const formData = new FormData();
       formData.append("file", file);
-
       const res = await axiosInstance.post("/upload_doc", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (event) => {
-          if (onProgress && event.total) {
-            const percent = Math.round((event.loaded * 100) / event.total);
-            onProgress(percent);
-          }
-        },
       });
-
       return { success: true, data: res.data };
     } catch (err) {
       return { success: false, error: handleError(err) };
@@ -236,6 +230,7 @@ const apiService = {
   },
 
   async ingestSharePoint(siteId, folderPath) {
+    // POST → returns { job_id }; caller opens GET /ingest_sharepoint/progress/{job_id} as SSE
     try {
       const res = await axiosInstance.post(
         `/ingest_sharepoint?site_id=${encodeURIComponent(siteId)}&folder_path=${encodeURIComponent(folderPath)}`

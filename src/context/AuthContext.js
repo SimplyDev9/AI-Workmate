@@ -4,6 +4,7 @@ import apiService from '../services/api';
 const AuthContext = createContext({
   permissions: [],
   roles: [],
+  email: null,
   loading: true,
   refresh: () => {},
 });
@@ -11,6 +12,7 @@ const AuthContext = createContext({
 export function AuthProvider({ children }) {
   const [permissions, setPermissions] = useState([]);
   const [roles, setRoles]             = useState([]);
+  const [email, setEmail]             = useState(null);
   const [loading, setLoading]         = useState(true);
 
   const refresh = useCallback(async () => {
@@ -18,6 +20,7 @@ export function AuthProvider({ children }) {
     if (!token) {
       setPermissions([]);
       setRoles([]);
+      setEmail(null);
       setLoading(false);
       return;
     }
@@ -29,6 +32,7 @@ export function AuthProvider({ children }) {
       const rs    = res.data.roles || [];
       setPermissions(perms);
       setRoles(rs);
+      setEmail(res.data.email || null);
       // keep sessionStorage consistent (UI convenience only — NOT used for auth)
       sessionStorage.setItem('permissions', JSON.stringify(perms));
       sessionStorage.setItem('roles', JSON.stringify(rs));
@@ -37,6 +41,7 @@ export function AuthProvider({ children }) {
       sessionStorage.clear();
       setPermissions([]);
       setRoles([]);
+      setEmail(null);
     }
 
     setLoading(false);
@@ -47,7 +52,7 @@ export function AuthProvider({ children }) {
   }, [refresh]);
 
   return (
-    <AuthContext.Provider value={{ permissions, roles, loading, refresh }}>
+    <AuthContext.Provider value={{ permissions, roles, email, loading, refresh }}>
       {children}
     </AuthContext.Provider>
   );
