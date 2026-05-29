@@ -19,7 +19,7 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [messages, setMessages] = useState([]);
+  // const [messages, setMessages] = useState([]);
   const { permissions } = useAuth();
   const [darkMode, setDarkMode] = useState(
     localStorage.getItem('theme') === 'dark'
@@ -195,7 +195,8 @@ const Layout = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        <Outlet context={{ messages, setMessages }} />
+        {/* <Outlet context={{ messages, setMessages }} /> */}
+        <Outlet />
       </div>
     </div>
   );

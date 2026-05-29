@@ -6,7 +6,7 @@ const BASE_URL = process.env.REACT_APP_BACKEND_URL;
 // AXIOS INSTANCE
 // ------------------------
 const axiosInstance = axios.create({
-  baseURL: BASE_URL
+  baseURL: BASE_URL,
 });
 
 // ------------------------
@@ -40,14 +40,31 @@ axiosInstance.interceptors.response.use(
 // ------------------------
 // ERROR HANDLER
 // ------------------------
+
+/**
+ * Normalise any Axios error into a plain string.
+ *
+ * Special case: when the backend returns a structured CONTENT_BLOCKED body
+ *   { "detail": { "code": "CONTENT_BLOCKED", "message": "..." } }
+ * we surface the human-readable `message` directly so the UI can display it.
+ */
 const handleError = (error) => {
   if (error.response?.status === 429) {
     return "Too many attempts. Please wait a minute before trying again.";
   }
+
   const detail = error.response?.data?.detail;
+
+  // ── Structured guardrail error ────────────────────────────────────────
+  if (detail && typeof detail === "object" && detail.code === "CONTENT_BLOCKED") {
+    // Return a sentinel-prefixed string so callers can detect it cheaply
+    return `CONTENT_BLOCKED: ${detail.message}`;
+  }
+
   if (Array.isArray(detail)) {
     return detail.map((d) => d.msg || JSON.stringify(d)).join("; ");
   }
+
   return (
     detail ||
     error.response?.data?.message ||
@@ -110,6 +127,13 @@ const apiService = {
   // ------------------------
   // CHAT
   // ------------------------
+  /**
+   * Send a user message to the RAG backend.
+   *
+   * On CONTENT_BLOCKED (HTTP 400), result.success is false and
+   * result.error starts with "CONTENT_BLOCKED: ".
+   * Use isGuardrailBlock() from utils/guardrails.js to detect this case.
+   */
   async sendMessage(query) {
     try {
       const res = await axiosInstance.post("/chat", { query });
@@ -123,11 +147,15 @@ const apiService = {
   // VOICE — Speech-to-Text (Amazon Transcribe)
   // ------------------------
   /**
-   * Upload a WebM/audio blob to the backend.
-   * Backend runs Amazon Transcribe and returns { transcript: "..." }
+   * Upload a WebM/audio blob to the backend for transcription.
    *
-   * @param {Blob} audioBlob  — recorded audio from MediaRecorder
-   * @returns {{ success: boolean, data?: { transcript: string }, error?: string }}
+   * Returns:
+   *   { success: true,  data: { transcript: string } }
+   *   { success: false, error: string }           — generic error
+   *   { success: false, error: "CONTENT_BLOCKED: ...", isGuardrailBlock: true }
+   *
+   * When isGuardrailBlock is true, the transcript itself may be included
+   * in the structured detail from the server so we parse it here.
    */
   async transcribeAudio(audioBlob) {
     try {
@@ -136,28 +164,35 @@ const apiService = {
 
       const res = await axiosInstance.post("/voice/transcribe", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        // Transcribe can take a few seconds — allow up to 30 s
         timeout: 30_000,
       });
 
       return { success: true, data: res.data };
     } catch (err) {
-      return { success: false, error: handleError(err) };
+      const errorStr = handleError(err);
+      const blocked  = errorStr.startsWith("CONTENT_BLOCKED:");
+
+      // If blocked, also extract the transcript the server included
+      let blockedTranscript = "";
+      if (blocked) {
+        const raw = err.response?.data?.detail;
+        if (raw && typeof raw === "object") {
+          blockedTranscript = raw.transcript || "";
+        }
+      }
+
+      return {
+        success:           false,
+        error:             errorStr,
+        isGuardrailBlock:  blocked,
+        blockedTranscript,
+      };
     }
   },
 
   // ------------------------
   // VOICE — Text-to-Speech (Amazon Polly)
   // ------------------------
-  /**
-   * Send AI response text to the backend.
-   * Backend calls Amazon Polly and returns an audio blob.
-   * We create a local object URL so the browser can play it.
-   *
-   * @param {string} text  — text to synthesize
-   * @param {string} [voiceId="Joanna"]  — Polly voice ID
-   * @returns {{ success: boolean, audioUrl?: string, error?: string }}
-   */
   async synthesizeSpeech(text, voiceId = "Joanna") {
     try {
       const res = await axiosInstance.post(
@@ -200,8 +235,6 @@ const apiService = {
   },
 
   async uploadDocument(file) {
-    // POST file → returns { job_id, filename }
-    // Caller opens GET /upload_doc/progress/{job_id} as SSE stream for real progress
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -230,7 +263,6 @@ const apiService = {
   },
 
   async ingestSharePoint(siteId, folderPath) {
-    // POST → returns { job_id }; caller opens GET /ingest_sharepoint/progress/{job_id} as SSE
     try {
       const res = await axiosInstance.post(
         `/ingest_sharepoint?site_id=${encodeURIComponent(siteId)}&folder_path=${encodeURIComponent(folderPath)}`

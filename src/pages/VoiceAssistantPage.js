@@ -1,28 +1,20 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Mic,
-  MicOff,
-  Volume2,
-  VolumeX,
-  Trash2,
-  Loader2,
-  BrainCircuit,
-  User,
-  AlertCircle,
-  Waves,
+  Mic, MicOff, Volume2, VolumeX, Trash2, Loader2,
+  BrainCircuit, User, AlertCircle, Waves, ShieldAlert,
 } from 'lucide-react';
 import apiService from '../services/api';
+import { isGuardrailBlock } from '../utils/guardrails';
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Constants
-// ─────────────────────────────────────────────
-const RECORDING_MAX_MS = 60_000; // 60 s hard cap
+// ─────────────────────────────────────────────────────────────────────────────
+const RECORDING_MAX_MS = 60_000;
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
-/** Animated waveform bars shown while recording */
 const WaveformBars = ({ active }) => (
   <div className="flex items-end gap-[3px] h-8" aria-hidden="true">
     {Array.from({ length: 9 }).map((_, i) => (
@@ -44,7 +36,6 @@ const WaveformBars = ({ active }) => (
   </div>
 );
 
-/** Ripple rings behind the mic button */
 const RippleRings = () => (
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     {[0, 1, 2].map((i) => (
@@ -61,22 +52,29 @@ const RippleRings = () => (
   </div>
 );
 
-/** Single conversation turn bubble */
+/**
+ * Single conversation turn bubble.
+ * Accepts an optional `isBlocked` flag to render a blocked-message style.
+ */
 const VoiceBubble = ({ turn }) => {
-  const isUser = turn.role === 'user';
+  const isUser    = turn.role === 'user';
+  const isBlocked = turn.isBlocked === true;
+
   return (
-    <div
-      className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
-    >
+    <div className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
       <div
         className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
-          isUser
+          isBlocked
+            ? 'bg-red-100 dark:bg-red-900/40'
+            : isUser
             ? 'bg-gradient-to-br from-indigo-500 to-indigo-600'
             : 'bg-gradient-to-br from-cyan-400 to-cyan-500'
         }`}
       >
-        {isUser ? (
+        {isBlocked ? (
+          <ShieldAlert className="w-4 h-4 text-red-500" />
+        ) : isUser ? (
           <User className="w-4 h-4 text-white" />
         ) : (
           <BrainCircuit className="w-4 h-4 text-white" />
@@ -86,15 +84,24 @@ const VoiceBubble = ({ turn }) => {
       {/* Bubble */}
       <div
         className={`max-w-[72%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words ${
-          isUser
+          isBlocked
+            ? 'bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 rounded-tl-sm'
+            : isUser
             ? 'bg-indigo-600 text-white rounded-tr-sm'
             : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm border border-gray-200 dark:border-gray-700'
         }`}
       >
+        {isBlocked && (
+          <p className="font-semibold text-red-600 dark:text-red-400 mb-1 flex items-center gap-1.5">
+            <ShieldAlert className="w-3.5 h-3.5" />
+            Message blocked
+          </p>
+        )}
+
         <p>{turn.text}</p>
 
         {/* Sources */}
-        {!isUser && turn.sources?.length > 0 && (
+        {!isUser && !isBlocked && turn.sources?.length > 0 && (
           <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-2">
             <p className="font-semibold mb-1">📄 Sources:</p>
             <ul className="space-y-0.5">
@@ -119,11 +126,13 @@ const VoiceBubble = ({ turn }) => {
         )}
 
         {/* Timestamp */}
-        <p
-          className={`mt-1 text-[10px] ${
-            isUser ? 'text-indigo-300' : 'text-gray-400 dark:text-gray-500'
-          }`}
-        >
+        <p className={`mt-1 text-[10px] ${
+          isBlocked
+            ? 'text-red-400'
+            : isUser
+            ? 'text-indigo-300'
+            : 'text-gray-400 dark:text-gray-500'
+        }`}>
           {turn.timestamp}
         </p>
       </div>
@@ -131,9 +140,9 @@ const VoiceBubble = ({ turn }) => {
   );
 };
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // CSS keyframes injected once
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 const KEYFRAMES = `
 @keyframes voiceBar {
   0%   { transform: scaleY(0.4); opacity: 0.7; }
@@ -149,35 +158,29 @@ const KEYFRAMES = `
 }
 `;
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Main page
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 const VoiceAssistantPage = () => {
-  /* ── state ── */
-  const [status, setStatus] = useState('idle'); 
-  // idle | recording | transcribing | thinking | speaking | error
+  const [status, setStatus]     = useState('idle');
+  const [turns, setTurns]       = useState([]);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isMuted, setIsMuted]   = useState(false);
+  const [liveDb, setLiveDb]     = useState(0);
 
-  const [turns, setTurns]         = useState([]);
-  const [errorMsg, setErrorMsg]   = useState('');
-  const [isMuted, setIsMuted]     = useState(false);
-  const [liveDb, setLiveDb]       = useState(0); // volume indicator
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef   = useRef([]);
+  const audioElRef       = useRef(new Audio());
+  const streamRef        = useRef(null);
+  const analyserRef      = useRef(null);
+  const rafRef           = useRef(null);
+  const maxTimerRef      = useRef(null);
+  const bottomRef        = useRef(null);
 
-  /* ── refs ── */
-  const mediaRecorderRef  = useRef(null);
-  const audioChunksRef    = useRef([]);
-  const audioElRef        = useRef(new Audio());
-  const streamRef         = useRef(null);
-  const analyserRef       = useRef(null);
-  const rafRef            = useRef(null);
-  const maxTimerRef       = useRef(null);
-  const bottomRef         = useRef(null);
-
-  /* ── scroll to bottom on new turn ── */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns, status]);
 
-  /* ── inject keyframe styles once ── */
   useEffect(() => {
     const el = document.createElement('style');
     el.innerHTML = KEYFRAMES;
@@ -185,7 +188,6 @@ const VoiceAssistantPage = () => {
     return () => el.remove();
   }, []);
 
-  /* ── cleanup on unmount ── */
   useEffect(() => {
     return () => {
       stopStream();
@@ -196,7 +198,6 @@ const VoiceAssistantPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── helpers ── */
   const stopStream = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -210,7 +211,6 @@ const VoiceAssistantPage = () => {
     clearTimeout(maxTimerRef.current);
   };
 
-  /* ── volume analyser loop ── */
   const startAnalyser = useCallback((stream) => {
     const ctx      = new (window.AudioContext || window.webkitAudioContext)();
     const analyser = ctx.createAnalyser();
@@ -228,7 +228,6 @@ const VoiceAssistantPage = () => {
     tick();
   }, []);
 
-  /* ── START RECORDING ── */
   const startRecording = async () => {
     setErrorMsg('');
     audioElRef.current.pause();
@@ -246,18 +245,15 @@ const VoiceAssistantPage = () => {
       };
 
       recorder.onstop = handleRecordingStop;
-      recorder.start(200); // collect every 200 ms
+      recorder.start(200);
       mediaRecorderRef.current = recorder;
-
       setStatus('recording');
 
-      // Safety: auto-stop after 60 s
       maxTimerRef.current = setTimeout(() => {
         if (mediaRecorderRef.current?.state === 'recording') {
           mediaRecorderRef.current.stop();
         }
       }, RECORDING_MAX_MS);
-
     } catch (err) {
       if (err.name === 'NotAllowedError') {
         showError('Microphone access denied. Please allow microphone permissions.');
@@ -267,7 +263,6 @@ const VoiceAssistantPage = () => {
     }
   };
 
-  /* ── STOP RECORDING ── */
   const stopRecording = () => {
     clearTimeout(maxTimerRef.current);
     cancelAnimationFrame(rafRef.current);
@@ -280,7 +275,6 @@ const VoiceAssistantPage = () => {
     setStatus('transcribing');
   };
 
-  /* ── AFTER RECORDING: transcribe → RAG → TTS ── */
   const handleRecordingStop = async () => {
     const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
     audioChunksRef.current = [];
@@ -293,7 +287,31 @@ const VoiceAssistantPage = () => {
     // 1. Transcribe via backend (Amazon Transcribe)
     setStatus('transcribing');
     const transcribeResult = await apiService.transcribeAudio(blob);
+
+    // ── Guardrail block from transcription endpoint ────────────────────
     if (!transcribeResult.success) {
+      if (transcribeResult.isGuardrailBlock) {
+        // Build a blocked user turn to show what was said + why it was blocked
+        const blockedUserTurn = {
+          id:        Date.now(),
+          role:      'user',
+          text:      transcribeResult.blockedTranscript || '(speech detected)',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        const blockedSystemTurn = {
+          id:        Date.now() + 1,
+          role:      'assistant',
+          isBlocked: true,
+          text:      transcribeResult.error.replace('CONTENT_BLOCKED: ', '').replace('⚠️ ', ''),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        setTurns((prev) => [...prev, blockedUserTurn, blockedSystemTurn]);
+        setStatus('idle');
+        return;
+      }
+
       showError(`Transcription failed: ${transcribeResult.error}`);
       return;
     }
@@ -306,46 +324,59 @@ const VoiceAssistantPage = () => {
 
     // Add user turn
     const userTurn = {
-      id: Date.now(),
-      role: 'user',
-      text: userText,
+      id:        Date.now(),
+      role:      'user',
+      text:      userText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setTurns((prev) => [...prev, userTurn]);
 
-    // 2. RAG query (existing /chat endpoint)
+    // 2. RAG query — server-side guardrails also run here
     setStatus('thinking');
     const chatResult = await apiService.sendMessage(userText);
+
     if (!chatResult.success) {
-      showError(`AI error: ${chatResult.error}`);
+      if (isGuardrailBlock(chatResult.error)) {
+        // Guardrail blocked the RAG query (edge case — transcription passed but chat blocked)
+        const blockedTurn = {
+          id:        Date.now() + 1,
+          role:      'assistant',
+          isBlocked: true,
+          text:      chatResult.error.replace('CONTENT_BLOCKED: ', '').replace('⚠️ ', ''),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setTurns((prev) => [...prev, blockedTurn]);
+        setStatus('idle');
+      } else {
+        showError(`AI error: ${chatResult.error}`);
+      }
       return;
     }
 
-    const aiText   = chatResult.data.response;
-    const sources  = chatResult.data.sources || [];
+    const aiText  = chatResult.data.response;
+    const sources = chatResult.data.sources || [];
 
     const aiTurn = {
-      id: Date.now() + 1,
-      role: 'assistant',
-      text: aiText,
+      id:        Date.now() + 1,
+      role:      'assistant',
+      text:      aiText,
       sources,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     setTurns((prev) => [...prev, aiTurn]);
 
-    // 3. TTS via backend (Amazon Polly) — optional if muted
+    // 3. TTS via backend (Amazon Polly)
     if (!isMuted) {
       setStatus('speaking');
       const ttsResult = await apiService.synthesizeSpeech(aiText);
 
       if (ttsResult.success && ttsResult.audioUrl) {
-        const audio = audioElRef.current;
-        audio.src = ttsResult.audioUrl;
+        const audio  = audioElRef.current;
+        audio.src    = ttsResult.audioUrl;
         audio.onended = () => setStatus('idle');
         audio.onerror = () => setStatus('idle');
         audio.play().catch(() => setStatus('idle'));
       } else {
-        // TTS failed silently — still show the text
         setStatus('idle');
       }
     } else {
@@ -353,7 +384,6 @@ const VoiceAssistantPage = () => {
     }
   };
 
-  /* ── toggle mute mid-playback ── */
   const toggleMute = () => {
     setIsMuted((prev) => {
       const next = !prev;
@@ -362,13 +392,11 @@ const VoiceAssistantPage = () => {
     });
   };
 
-  /* ── stop speaking early ── */
   const stopSpeaking = () => {
     audioElRef.current.pause();
     setStatus('idle');
   };
 
-  /* ── clear history ── */
   const clearHistory = () => {
     audioElRef.current.pause();
     setTurns([]);
@@ -376,11 +404,11 @@ const VoiceAssistantPage = () => {
     setStatus('idle');
   };
 
-  /* ── derived UI vars ── */
-  const isRecording   = status === 'recording';
-  const isBusy        = ['transcribing', 'thinking', 'speaking'].includes(status);
-  const canRecord     = status === 'idle' || status === 'error';
-  const statusLabels  = {
+  const isRecording = status === 'recording';
+  const isBusy      = ['transcribing', 'thinking', 'speaking'].includes(status);
+  const canRecord   = status === 'idle' || status === 'error';
+
+  const statusLabels = {
     idle:         'Tap the microphone to speak',
     recording:    'Listening… tap again to stop',
     transcribing: 'Transcribing your voice…',
@@ -388,6 +416,7 @@ const VoiceAssistantPage = () => {
     speaking:     'Playing response…',
     error:        errorMsg || 'An error occurred',
   };
+
   const statusColors = {
     idle:         'text-gray-500 dark:text-gray-400',
     recording:    'text-indigo-600 dark:text-indigo-400',
@@ -397,14 +426,12 @@ const VoiceAssistantPage = () => {
     error:        'text-red-600 dark:text-red-400',
   };
 
-  /* ── volume bar width ── */
   const volPct = isRecording ? `${liveDb}%` : '0%';
 
-  // ────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-cyan-400 rounded-lg flex items-center justify-center">
@@ -420,9 +447,7 @@ const VoiceAssistantPage = () => {
           </div>
         </div>
 
-        {/* Controls */}
         <div className="flex items-center gap-2">
-          {/* Mute / unmute */}
           <button
             onClick={toggleMute}
             title={isMuted ? 'Unmute audio' : 'Mute audio'}
@@ -432,7 +457,6 @@ const VoiceAssistantPage = () => {
             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
           </button>
 
-          {/* Stop speaking */}
           {status === 'speaking' && (
             <button
               onClick={stopSpeaking}
@@ -443,7 +467,6 @@ const VoiceAssistantPage = () => {
             </button>
           )}
 
-          {/* Clear */}
           {turns.length > 0 && (
             <button
               onClick={clearHistory}
@@ -457,7 +480,7 @@ const VoiceAssistantPage = () => {
         </div>
       </div>
 
-      {/* ── Conversation history ── */}
+      {/* Conversation history */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
         {turns.length === 0 && status !== 'error' && (
           <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
@@ -469,8 +492,8 @@ const VoiceAssistantPage = () => {
                 Start a voice conversation
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
-                Press the microphone button and ask anything related to Knowledge Base Documents. Your knowledge
-                base will answer in real time.
+                Press the microphone button and ask anything related to your
+                knowledge base documents.
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 max-w-lg w-full">
@@ -494,7 +517,6 @@ const VoiceAssistantPage = () => {
           <VoiceBubble key={turn.id} turn={turn} />
         ))}
 
-        {/* Inline status for busy states */}
         {isBusy && (
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center flex-shrink-0">
@@ -508,14 +530,11 @@ const VoiceAssistantPage = () => {
           </div>
         )}
 
-        {/* Error bubble */}
         {status === 'error' && (
           <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-red-700 dark:text-red-400">
-                {errorMsg}
-              </p>
+              <p className="text-sm font-medium text-red-700 dark:text-red-400">{errorMsg}</p>
               <button
                 onClick={() => setStatus('idle')}
                 className="mt-1 text-xs text-red-500 hover:underline"
@@ -529,11 +548,10 @@ const VoiceAssistantPage = () => {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Control panel ── */}
+      {/* Control panel */}
       <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-6">
         <div className="flex flex-col items-center gap-4">
 
-          {/* Volume bar */}
           <div className="w-48 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-indigo-500 rounded-full transition-all duration-100"
@@ -541,10 +559,8 @@ const VoiceAssistantPage = () => {
             />
           </div>
 
-          {/* Waveform */}
           <WaveformBars active={isRecording} />
 
-          {/* Mic button */}
           <div className="relative flex items-center justify-center">
             {isRecording && <RippleRings />}
 
@@ -572,16 +588,17 @@ const VoiceAssistantPage = () => {
             </button>
           </div>
 
-          {/* Status label */}
-          <p className={`text-sm font-medium text-center transition-colors ${statusColors[status]}`}
-             data-testid="voice-status-label">
+          <p
+            className={`text-sm font-medium text-center transition-colors ${statusColors[status]}`}
+            data-testid="voice-status-label"
+          >
             {statusLabels[status]}
           </p>
 
-          {/* Capability chips */}
           <div className="flex items-center gap-3 flex-wrap justify-center mt-1">
             {[
               { icon: '🎙️', label: 'Amazon Transcribe' },
+              { icon: '🛡️', label: 'Guardrails' },
               { icon: '🧠', label: 'Amazon Bedrock RAG' },
               { icon: '🔊', label: 'Amazon Polly' },
             ].map(({ icon, label }) => (

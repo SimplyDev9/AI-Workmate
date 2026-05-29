@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User, BrainCircuit } from 'lucide-react';
 
+/**
+ * ChatMessage.js — no changes required for guardrails.
+ *
+ * Guardrail-blocked messages from the server are handled in ChatPage.js
+ * via the GuardrailBanner component (shown inline, not as a chat bubble).
+ * This component stays clean and purely presentational.
+ */
 const ChatMessage = ({ message, isUser, isTyping }) => {
   const [displayedText, setDisplayedText] = useState('');
 
@@ -9,9 +16,9 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
     const text = message?.text;
 
     if (message === null) {
-      safeMessage = "null";
+      safeMessage = 'null';
     } else if (message === undefined) {
-      safeMessage = "undefined";
+      safeMessage = 'undefined';
     } else {
       safeMessage = String(text);
     }
@@ -24,7 +31,6 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
     let index = 0;
     let interval;
 
-    // If tab becomes hidden, instantly complete the text
     const handleVisibilityChange = () => {
       if (document.hidden) {
         clearInterval(interval);
@@ -47,7 +53,6 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-
   }, [message?.text]);
 
   return (
@@ -81,19 +86,19 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
       >
         <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
           {displayedText}
-          {/* ✅ Cursor only while typing */}
           {!isUser &&
-            displayedText.length < String(message?.text || "").length && (
+            displayedText.length < String(message?.text || '').length && (
               <span className="inline-block w-1 h-4 ml-1 bg-cyan-500 animate-pulse" />
             )}
         </p>
+
         {!isUser && message?.sources?.length > 0 && (
           <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
             <p className="font-semibold mb-1">📄 Sources:</p>
             <ul className="list-disc list-inside space-y-1">
               {message.sources.map((src, index) => (
                 <li key={index}>
-                  {src.type === "sharepoint" && src.url ? (
+                  {src.type === 'sharepoint' && src.url ? (
                     <a
                       href={src.url}
                       target="_blank"
@@ -103,7 +108,7 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
                       {src.name} 🔗
                     </a>
                   ) : (
-                    <span>{src.name}</span>  // ✅ normal text for uploads
+                    <span>{src.name}</span>
                   )}
                 </li>
               ))}
@@ -115,4 +120,4 @@ const ChatMessage = ({ message, isUser, isTyping }) => {
   );
 };
 
-export default ChatMessage;
+export default React.memo(ChatMessage);
