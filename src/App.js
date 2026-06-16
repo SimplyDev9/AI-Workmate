@@ -17,7 +17,8 @@ import SharePointPage from "./pages/SharePointPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import AdminPage from "./pages/AdminPage";
-import VoiceAssistantPage from "./pages/VoiceAssistantPage";  // ← NEW
+import VoiceAssistantPage from "./pages/VoiceAssistantPage";  
+import DashboardPage from "./pages/DashboardPage";  
 
 import "./App.css";
 
@@ -112,7 +113,8 @@ function App() {
 
               {/* ADMIN ONLY */}
               <Route element={<RequireAdmin />}>
-                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />  {/* ← NEW */}
+                <Route path="/admin"     element={<AdminPage />} />
               </Route>
 
             </Route>

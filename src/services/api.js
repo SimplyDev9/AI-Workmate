@@ -399,6 +399,106 @@ const apiService = {
       return { success: false, error: handleError(err) };
     }
   },
+  // ------------------------
+  // DASHBOARD
+  // ------------------------
+ 
+  async getDashboardKPIs() {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/kpis");
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+ 
+  async getDashboardUsageChart(days = 7) {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/usage-chart", {
+        params: { days },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+ 
+  async getDashboardKnowledgeBase() {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/knowledge-base");
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+ 
+  async getDashboardGuardrails(days = 7) {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/guardrails", {
+        params: { days },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+ 
+  async getDashboardRAGMetrics(days = 7) {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/rag-metrics", {
+        params: { days },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+ 
+  async getDashboardModelPerformance(days = 7) {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/model-performance", {
+        params: { days },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+ 
+  async getDashboardCosts(days = 7) {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/costs", {
+        params: { days },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+ 
+  async getDashboardUserAnalytics(days = 7) {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/user-analytics", {
+        params: { days },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
+ 
+  async getDashboardAuditLogs(page = 1, limit = 20, days = 7) {
+    try {
+      const res = await axiosInstance.get("/admin/dashboard/audit-logs", {
+        params: { page, limit, days },
+      });
+      return { success: true, data: res.data };
+    } catch (err) {
+      return { success: false, error: handleError(err) };
+    }
+  },
 };
+
+
 
 export default apiService;

@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   LogOut,
   Mic,
+  LayoutDashboard,   
 } from 'lucide-react';
 import apiService from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -89,13 +90,10 @@ const Layout = () => {
       icon: Cloud,
     });
   }
-
-  if (permissions.includes('manage_users')) {
-    navigation.push({
-      name: 'Admin Panel',
-      path: '/admin',
-      icon: ShieldCheck,
-    });
+if (permissions.includes('manage_users')) {
+    // ── Dashboard (admin only) — sits above Admin Panel ──────────────
+    navigation.push({ name: 'Dashboard',  path: '/dashboard', icon: LayoutDashboard });
+    navigation.push({ name: 'Admin Panel',path: '/admin',     icon: ShieldCheck });
   }
 
   return (
@@ -122,25 +120,35 @@ const Layout = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
-            const Icon = item.icon;
+            const Icon     = item.icon;
             const isActive = location.pathname === item.path;
-
+            // ── Section divider before Dashboard ──────────────────
+            const isDashboard = item.path === '/dashboard';
+ 
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                data-testid={`nav-${item.name.toLowerCase().replace(/ /g, '-')}`}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
-                  isActive
-                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.name}</span>
-              </Link>
+              <React.Fragment key={item.path}>
+                {isDashboard && (
+                  <div className="pt-2 pb-1">
+                    <p className="px-4 text-[10px] font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest">
+                      Analytics
+                    </p>
+                  </div>
+                )}
+                <Link
+                  to={item.path}
+                  data-testid={`nav-${item.name.toLowerCase().replace(/ /g, '-')}`}
+                  className={`flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-all ${
+                    isActive
+                      ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium text-sm">{item.name}</span>
+                </Link>
+              </React.Fragment>
             );
           })}
         </nav>
